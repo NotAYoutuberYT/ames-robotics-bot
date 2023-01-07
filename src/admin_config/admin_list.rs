@@ -7,7 +7,7 @@ use serenity::{
 };
 
 pub struct AdminRoleList {
-    admin_roles: Vec<Role>,
+    pub admin_roles: Vec<Role>,
 }
 
 impl AdminRoleList {
@@ -28,7 +28,7 @@ impl AdminRoleList {
         Ok(())
     }
 
-    pub fn remove_id(&mut self, role: &Role) -> Result<(), &'static str> {
+    pub fn remove_role(&mut self, role: &Role) -> Result<(), &'static str> {
         // if this role doesn't already have perms, return an error
         if !self.admin_roles.contains(role) {
             return Err("That role doesn't have configuration privileges!");

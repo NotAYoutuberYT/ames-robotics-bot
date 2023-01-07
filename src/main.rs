@@ -9,11 +9,12 @@ use serenity::{
     Error,
 };
 
+// not included in repo, configure manually
 mod bot_token;
 use bot_token::BOT_TOKEN;
 
 mod admin_config;
-use admin_config::{admin_list::AdminRoleList, set_admin};
+use admin_config::{admin_list::AdminRoleList, give_admin, list_config_roles, remove_admin};
 
 // bot persistent data
 struct AdminRoles;
@@ -33,7 +34,9 @@ impl EventHandler for Handler {
 
             // run the command and store the result
             let result: Result<(), Error> = match command.data.name.as_str() {
-                "add-configuration-permissions" => set_admin::run(&command, &ctx).await,
+                "give-config-permissions" => give_admin::run(&command, &ctx).await,
+                "remove-config-permissions" => remove_admin::run(&command, &ctx).await,
+                "list-configuration-roles" => list_config_roles::run(&command, &ctx).await,
                 _ => Err(Error::Other("Command not implemented")),
             };
 
@@ -58,7 +61,9 @@ impl EventHandler for Handler {
         // create the slash commands using
         let commands = Command::set_global_application_commands(&ctx.http, |command_builder| {
             command_builder
-                .create_application_command(|command_base| set_admin::create(command_base))
+                .create_application_command(|command| give_admin::create(command))
+                .create_application_command(|command| remove_admin::create(command))
+                .create_application_command(|command| list_config_roles::create(command))
         })
         .await
         .expect("Error adding slash commands");
@@ -69,7 +74,7 @@ impl EventHandler for Handler {
             commands
                 .into_iter()
                 .fold("".to_owned(), |msg, command| msg + "\n   " + &command.name),
-                ready.user.name,
+            ready.user.name,
             ready.user.id,
         );
     }

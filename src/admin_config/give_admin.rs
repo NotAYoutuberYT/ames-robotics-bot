@@ -6,7 +6,7 @@ use serenity::{
         prelude::{command::CommandOptionType, interaction::InteractionResponseType, Role},
     },
     prelude::Context,
-    utils::ArgumentConvert,
+    utils::{ArgumentConvert, MessageBuilder},
     Error,
 };
 
@@ -35,10 +35,11 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
         return Err(Error::Other("failed to extract role id"));
     }
 
-    let mut message: String = std::format!(
-        "Successfully gave {} the ability to configure the bot.",
-        role.name
-    );
+    let mut message: String = MessageBuilder::new()
+        .push("Successfully gave ")
+        .push_safe(&role)
+        .push(" the ability to configure the bot.")
+        .build();
 
     // in group for rwlock safety
     {
@@ -65,7 +66,10 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
             return Err(Error::Other("failed to get a guild id"));
         }
 
-        match has_perms {
+        // add the role to admin roles if the user has perms and the role isn't @everyone
+        match has_perms
+            && !(role.name == "@everyone" && (role.position == -1 || role.position == 0))
+        {
             true => {
                 if let Err(e) = admin_roles.add_role(&role) {
                     message = e.to_owned();
@@ -75,12 +79,15 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
         }
     }
 
+    if role.name == "@everyone" && (role.position == -1 || role.position == 0) {
+        message = "Can't give @everyone permissions to configure the bot!".to_owned();
+    }
+
     // interact to the command with a response containing the supplied messasge
     command
         .create_interaction_response(&ctx.http, |response| {
             response
                 .kind(InteractionResponseType::ChannelMessageWithSource)
-                // message defined here
                 .interaction_response_data(|response| response.content(message))
         })
         .await
@@ -92,14 +99,14 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
 
 pub fn create(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
     command
-        .name("add-configuration-permissions")
-        .description("allows the given role to configure the bot (any roles with administrator are allowed by default)")
+        .name("give-config-permissions")
+        .description("gives the given role permission to run configuration commands")
         .create_option(|option| {
             // the option for what the bot will say
             option
                 .kind(CommandOptionType::Role)
                 .name("role")
-                .description("the role to let configure the bot")
+                .description("the role to give configuration permissions to")
                 .default_option(false)
                 .required(true)
         })

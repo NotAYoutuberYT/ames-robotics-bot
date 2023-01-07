@@ -1,2 +1,4 @@
 pub mod admin_list;
-pub mod set_admin;
+pub mod give_admin;
+pub mod list_config_roles;
+pub mod remove_admin;
