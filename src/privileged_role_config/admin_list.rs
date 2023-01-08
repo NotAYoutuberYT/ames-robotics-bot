@@ -17,10 +17,12 @@ impl AdminRoleList {
         }
     }
 
+    // if this returns an error, it should be delivered to the user instead of
+    // actually being considered and error and logged
     pub fn add_role(&mut self, role: &Role) -> Result<(), &'static str> {
         // if the role already has permissions, return an error
         if self.admin_roles.contains(role) {
-            return Err("That role already has configuration privileges!");
+            return Err("That role already has elevated privileges!");
         }
 
         self.admin_roles.push(role.clone());
@@ -28,10 +30,12 @@ impl AdminRoleList {
         Ok(())
     }
 
+    // if this returns an error, it should be delivered to the user instead of
+    // actually being considered and error and logged
     pub fn remove_role(&mut self, role: &Role) -> Result<(), &'static str> {
         // if this role doesn't already have perms, return an error
         if !self.admin_roles.contains(role) {
-            return Err("That role doesn't have configuration privileges!");
+            return Err("That role doesn't have elevated privileges!");
         }
 
         // remove the element

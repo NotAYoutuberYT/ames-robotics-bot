@@ -13,8 +13,8 @@ use serenity::{
 mod bot_token;
 use bot_token::BOT_TOKEN;
 
-mod admin_config;
-use admin_config::{admin_list::AdminRoleList, give_admin, list_config_roles, remove_admin};
+mod privileged_role_config;
+use privileged_role_config::{admin_list::AdminRoleList, give_admin, list_privileged_roles, remove_admin};
 
 // bot persistent data
 struct AdminRoles;
@@ -34,9 +34,9 @@ impl EventHandler for Handler {
 
             // run the command and store the result
             let result: Result<(), Error> = match command.data.name.as_str() {
-                "give-config-permissions" => give_admin::run(&command, &ctx).await,
-                "remove-config-permissions" => remove_admin::run(&command, &ctx).await,
-                "list-configuration-roles" => list_config_roles::run(&command, &ctx).await,
+                "give-elevated-privileges" => give_admin::run(&command, &ctx).await,
+                "remove-privileges" => remove_admin::run(&command, &ctx).await,
+                "list-privileged-roles" => list_privileged_roles::run(&command, &ctx).await,
                 _ => Err(Error::Other("Command not implemented")),
             };
 
@@ -63,7 +63,7 @@ impl EventHandler for Handler {
             command_builder
                 .create_application_command(|command| give_admin::create(command))
                 .create_application_command(|command| remove_admin::create(command))
-                .create_application_command(|command| list_config_roles::create(command))
+                .create_application_command(|command| list_privileged_roles::create(command))
         })
         .await
         .expect("Error adding slash commands");

@@ -36,51 +36,41 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
     }
 
     let mut message: String = MessageBuilder::new()
-        .push("Successfully gave ")
+        .push("Successfully removed ")
         .push_safe(&role)
-        .push(" the ability to configure the bot.")
+        .push("'s privileges.")
         .build();
 
-    // in group for rwlock safety
-    {
-        // get admin roles
-        let mut bot_data = ctx.data.write().await;
-        let admin_roles = bot_data
-            .get_mut::<AdminRoles>()
-            .expect("no AdminRoles in TypeMap");
+    // get admin roles
+    let mut bot_data = ctx.data.write().await;
+    let admin_roles = bot_data
+        .get_mut::<AdminRoles>()
+        .expect("no AdminRoles in TypeMap");
 
-        let has_perms: bool;
+    let has_perms: bool;
 
-        // figure out if the user has perms (looks complicated, but just has a bunch of error handling)
-        // the error handling can be moved elsewhere in the future
-        if let Some(guild_id) = command.guild_id {
-            match guild_id.to_partial_guild(&ctx.http).await {
-                Ok(guild) => match admin_roles.user_has_admin(&command, &ctx, &guild).await {
-                    Ok(result) => has_perms = result,
-                    Err(e) => return Err(e),
-                },
+    // figure out if the user has perms (looks complicated, but just has a bunch of error handling)
+    // the error handling can be moved elsewhere in the future
+    if let Some(guild_id) = command.guild_id {
+        match guild_id.to_partial_guild(&ctx.http).await {
+            Ok(guild) => match admin_roles.user_has_admin(&command, &ctx, &guild).await {
+                Ok(result) => has_perms = result,
                 Err(e) => return Err(e),
-            }
-        } else {
-            // we failed to get a guild id
-            return Err(Error::Other("failed to get a guild id"));
+            },
+            Err(e) => return Err(e),
         }
-
-        // add the role to admin roles if the user has perms and the role isn't @everyone
-        match has_perms
-            && !(role.name == "@everyone" && (role.position == -1 || role.position == 0))
-        {
-            true => {
-                if let Err(e) = admin_roles.add_role(&role) {
-                    message = e.to_owned();
-                }
-            }
-            false => message = "You are not allowed to do that!".to_owned(),
-        }
+    } else {
+        // we failed to get a guild id
+        return Err(Error::Other("failed to get a guild id"));
     }
 
-    if role.name == "@everyone" && (role.position == -1 || role.position == 0) {
-        message = "Can't give @everyone permissions to configure the bot!".to_owned();
+    match has_perms {
+        true => {
+            if let Err(e) = admin_roles.remove_role(&role) {
+                message = e.to_owned();
+            }
+        }
+        false => message = "You are not allowed to do that!".to_owned(),
     }
 
     // interact to the command with a response containing the supplied messasge
@@ -99,14 +89,14 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
 
 pub fn create(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
     command
-        .name("give-config-permissions")
-        .description("gives the given role permission to run configuration commands")
+        .name("remove-privileges")
+        .description("removes elevated privileges from the given role")
         .create_option(|option| {
             // the option for what the bot will say
             option
                 .kind(CommandOptionType::Role)
                 .name("role")
-                .description("the role to give configuration permissions to")
+                .description("the role to remove the privileges from")
                 .default_option(false)
                 .required(true)
         })
