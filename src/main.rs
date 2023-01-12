@@ -16,10 +16,18 @@ use bot_token::BOT_TOKEN;
 mod privileged_role_config;
 use privileged_role_config::{admin_list::AdminRoleList, give_admin, list_privileged_roles, remove_admin};
 
+mod groups;
+use groups::group::Group;
+
 // bot persistent data
 struct AdminRoles;
 impl TypeMapKey for AdminRoles {
     type Value = AdminRoleList;
+}
+
+struct Groups;
+impl TypeMapKey for Groups {
+    type Value = Vec<Group>;
 }
 
 struct Handler;
@@ -95,6 +103,7 @@ async fn main() {
 
         // insert data
         data.insert::<AdminRoles>(AdminRoleList::new());
+        data.insert::<Groups>(Vec::new());
     }
 
     // start shard
