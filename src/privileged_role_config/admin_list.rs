@@ -7,6 +7,9 @@ use serenity::{
 };
 
 pub struct AdminRoleList {
+    // because roles (id's and all) are unique across guilds,
+    // we can store admin roles for all guilds in a single vector
+    // and everything just... works
     pub admin_roles: Vec<Role>,
 }
 
