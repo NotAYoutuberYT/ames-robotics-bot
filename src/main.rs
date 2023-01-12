@@ -13,8 +13,12 @@ use serenity::{
 mod bot_token;
 use bot_token::BOT_TOKEN;
 
+mod extract_from_command;
+
 mod privileged_role_config;
-use privileged_role_config::{admin_list::AdminRoleList, give_admin, list_privileged_roles, remove_admin};
+use privileged_role_config::{
+    admin_list::AdminRoleList, give_admin, list_privileged_roles, remove_admin,
+};
 
 // bot persistent data
 struct AdminRoles;

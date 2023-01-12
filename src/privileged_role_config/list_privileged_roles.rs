@@ -22,13 +22,17 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
     // not use this command in dms if it can't find one
     let command_guild_id = match command.guild_id {
         Some(id) => id,
-        None => return command
-        .create_interaction_response(&ctx.http, |response| {
-            response
-                .kind(InteractionResponseType::ChannelMessageWithSource)
-                .interaction_response_data(|response| response.content("This command must be used in a server!"))
-        })
-        .await
+        None => {
+            return command
+                .create_interaction_response(&ctx.http, |response| {
+                    response
+                        .kind(InteractionResponseType::ChannelMessageWithSource)
+                        .interaction_response_data(|response| {
+                            response.content("This command must be used in a server!")
+                        })
+                })
+                .await
+        }
     };
 
     // get admin roles (because we're in a function,

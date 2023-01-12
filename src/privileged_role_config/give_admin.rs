@@ -1,40 +1,31 @@
 use serenity::{
     builder::CreateApplicationCommand,
-    json::Value,
     model::{
         application::interaction::application_command::ApplicationCommandInteraction,
         prelude::{command::CommandOptionType, interaction::InteractionResponseType, Role},
     },
     prelude::Context,
-    utils::{ArgumentConvert, MessageBuilder},
+    utils::MessageBuilder,
     Error,
 };
 
 use crate::AdminRoles;
+
+use super::super::extract_from_command::extract_role;
 
 //
 // run
 //
 
 pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Result<(), Error> {
-    let role: Role;
-
     // extract the role
-    if let Some(Value::String(role_id)) = &command.data.options[0].value {
-        if let Ok(r) =
-            Role::convert(ctx, command.guild_id, Some(command.channel_id), &role_id).await
-        {
-            // successfully extracted role
-            role = r;
-        } else {
-            // couldn't get role from id
-            return Err(Error::Other("invalid role id"));
-        }
-    } else {
-        // couldn't get id
-        return Err(Error::Other("failed to extract role id"));
-    }
+    let role: Role = match extract_role(command, ctx).await {
+        Ok(r) => r,
+        Err(e) => return Err(e),
+    };
 
+    // if no errors are encountered, this "default" message will
+    // be the one sent at the end of the command
     let mut message: String = MessageBuilder::new()
         .push("Successfully gave ")
         .push_safe(&role)
@@ -50,7 +41,6 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
     let has_perms: bool;
 
     // figure out if the user has perms (looks complicated, but just has a bunch of error handling)
-    // the error handling can be moved elsewhere in the future
     if let Some(guild_id) = command.guild_id {
         match guild_id.to_partial_guild(&ctx.http).await {
             Ok(guild) => match admin_roles.user_has_admin(&command, &ctx, &guild).await {
@@ -64,8 +54,8 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
         return Err(Error::Other("failed to get a guild id"));
     }
 
-    // add the role to admin roles if the user has perms and the role isn't @everyone
-    match has_perms && !(role.name == "@everyone" && (role.position == -1 || role.position == 0)) {
+    // add the role to admin roles if the user has perms
+    match has_perms {
         true => {
             if let Err(e) = admin_roles.add_role(&role) {
                 message = e.to_owned();
@@ -74,6 +64,7 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
         false => message = "You are not allowed to do that!".to_owned(),
     }
 
+    // stop @everyone from being given perms
     if role.name == "@everyone" && (role.position == -1 || role.position == 0) {
         message = "Can't give @everyone elevated privileges!".to_owned();
     }

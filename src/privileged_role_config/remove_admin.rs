@@ -1,40 +1,31 @@
 use serenity::{
     builder::CreateApplicationCommand,
-    json::Value,
     model::{
         application::interaction::application_command::ApplicationCommandInteraction,
         prelude::{command::CommandOptionType, interaction::InteractionResponseType, Role},
     },
     prelude::Context,
-    utils::{ArgumentConvert, MessageBuilder},
+    utils::MessageBuilder,
     Error,
 };
 
 use crate::AdminRoles;
+
+use super::super::extract_from_command::extract_role;
 
 //
 // run
 //
 
 pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Result<(), Error> {
-    let role: Role;
-
     // extract the role
-    if let Some(Value::String(role_id)) = &command.data.options[0].value {
-        if let Ok(r) =
-            Role::convert(ctx, command.guild_id, Some(command.channel_id), &role_id).await
-        {
-            // successfully extracted role
-            role = r;
-        } else {
-            // couldn't get role from id
-            return Err(Error::Other("invalid role id"));
-        }
-    } else {
-        // couldn't get id
-        return Err(Error::Other("failed to extract role id"));
-    }
+    let role: Role = match extract_role(command, ctx).await {
+        Ok(r) => r,
+        Err(e) => return Err(e),
+    };
 
+    // if no errors are encountered, this "default" message will
+    // be the one sent at the end of the command
     let mut message: String = MessageBuilder::new()
         .push("Successfully removed ")
         .push_safe(&role)
@@ -64,6 +55,7 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
         return Err(Error::Other("failed to get a guild id"));
     }
 
+    // remove the roll from admin roles if the user has perms
     match has_perms {
         true => {
             if let Err(e) = admin_roles.remove_role(&role) {
