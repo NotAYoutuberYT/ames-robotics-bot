@@ -28,6 +28,9 @@ use privileged_role_config::{
     admin_list::AdminRoleList, give_admin, list_privileged_roles, remove_admin,
 };
 
+mod groups;
+use groups::group::Group;
+
 // bot persistent data
 struct AdminRoles;
 impl TypeMapKey for AdminRoles {
