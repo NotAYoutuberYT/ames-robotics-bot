@@ -6,6 +6,7 @@ use serenity::{
     Error,
 };
 
+// simple struct that contains a vector of roles
 pub struct AdminRoleList {
     // because roles (id's and all) are unique across guilds,
     // we can store admin roles for all guilds in a single vector
@@ -47,7 +48,9 @@ impl AdminRoleList {
         Ok(())
     }
 
-    pub async fn user_has_admin(
+    // checks if the person who
+    // sent the command has admin
+    pub async fn command_author_has_admin(
         &self,
         command: &ApplicationCommandInteraction,
         ctx: &Context,

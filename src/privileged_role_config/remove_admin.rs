@@ -9,9 +9,10 @@ use serenity::{
     Error,
 };
 
+use crate::extract_from_command::{
+    from_command_data::extract_partialguild, from_options::extract_role,
+};
 use crate::AdminRoles;
-
-use super::super::extract_from_command::extract_role;
 
 //
 // run
@@ -19,7 +20,7 @@ use super::super::extract_from_command::extract_role;
 
 pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Result<(), Error> {
     // extract the role
-    let role: Role = match extract_role(command, ctx).await {
+    let role: Role = match extract_role(command, ctx, 0).await {
         Ok(r) => r,
         Err(e) => return Err(e),
     };
@@ -41,18 +42,15 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
     let has_perms: bool;
 
     // figure out if the user has perms (looks complicated, but just has a bunch of error handling)
-    // the error handling can be moved elsewhere in the future
-    if let Some(guild_id) = command.guild_id {
-        match guild_id.to_partial_guild(&ctx.http).await {
-            Ok(guild) => match admin_roles.user_has_admin(&command, &ctx, &guild).await {
-                Ok(result) => has_perms = result,
-                Err(e) => return Err(e),
-            },
+    match extract_partialguild(&command, &ctx).await {
+        Ok(guild) => match admin_roles
+            .command_author_has_admin(&command, &ctx, &guild)
+            .await
+        {
+            Ok(result) => has_perms = result,
             Err(e) => return Err(e),
-        }
-    } else {
-        // we failed to get a guild id
-        return Err(Error::Other("failed to get a guild id"));
+        },
+        Err(e) => return Err(e),
     }
 
     // remove the roll from admin roles if the user has perms
