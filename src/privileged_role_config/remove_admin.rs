@@ -10,7 +10,7 @@ use serenity::{
 };
 
 use crate::extract_from_command::{
-    from_command_data::extract_partialguild, from_options::extract_role,
+    from_command_data::extract_partial_guild, from_options::extract_role,
 };
 use crate::AdminRoles;
 
@@ -20,10 +20,7 @@ use crate::AdminRoles;
 
 pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Result<(), Error> {
     // extract the role
-    let role: Role = match extract_role(command, ctx, 0).await {
-        Ok(r) => r,
-        Err(e) => return Err(e),
-    };
+    let role: Role = extract_role(command, ctx, 0).await?;
 
     // if no errors are encountered, this "default" message will
     // be the one sent at the end of the command
@@ -39,19 +36,14 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
         .get_mut::<AdminRoles>()
         .expect("no AdminRoles in TypeMap");
 
-    let has_perms: bool;
-
     // figure out if the user has perms (looks complicated, but just has a bunch of error handling)
-    match extract_partialguild(&command, &ctx).await {
-        Ok(guild) => match admin_roles
-            .command_author_has_admin(&command, &ctx, &guild)
-            .await
-        {
-            Ok(result) => has_perms = result,
-            Err(e) => return Err(e),
-        },
-        Err(e) => return Err(e),
-    }
+    let has_perms: bool = admin_roles
+        .command_author_has_admin(
+            &command,
+            &ctx,
+            &extract_partial_guild(&command, &ctx).await?,
+        )
+        .await?;
 
     // remove the roll from admin roles if the user has perms
     match has_perms {

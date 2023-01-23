@@ -6,7 +6,7 @@ use serenity::{
     Error,
 };
 
-pub async fn extract_partialguild(
+pub async fn extract_partial_guild(
     command: &ApplicationCommandInteraction,
     ctx: &Context,
 ) -> Result<PartialGuild, Error> {

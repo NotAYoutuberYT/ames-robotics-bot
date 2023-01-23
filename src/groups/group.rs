@@ -20,7 +20,7 @@ impl Group {
         if let Some(role1) = &self.role {
             if let Some(role2) = &other.role {
                 if role1.id == role2.id {
-                    role_overlap = false;
+                    role_overlap = true;
                 }
             }
         }

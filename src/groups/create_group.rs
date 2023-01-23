@@ -4,8 +4,8 @@ use serenity::{
     model::{
         application::interaction::application_command::ApplicationCommandInteraction,
         prelude::{
-            command::CommandOptionType, interaction::InteractionResponseType, Channel,
-            PartialGuild, Role, ChannelType,
+            command::CommandOptionType, interaction::InteractionResponseType, Channel, ChannelType,
+            PartialGuild, Role,
         },
     },
     prelude::Context,
@@ -15,7 +15,7 @@ use serenity::{
 
 use crate::{
     extract_from_command::{
-        from_command_data::extract_partialguild,
+        from_command_data::extract_partial_guild,
         from_options::{extract_channel, extract_role},
     },
     AdminRoles, Groups,
@@ -28,6 +28,23 @@ use super::group::Group;
 //
 
 pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Result<(), Error> {
+    // attempts to extract the command's guild and tells the user to
+    // not use this command in dms if it can't find one
+    match extract_partial_guild(&command, &ctx).await {
+        Ok(_) => (),
+        Err(_) => {
+            return command
+                .create_interaction_response(&ctx.http, |response| {
+                    response
+                        .kind(InteractionResponseType::ChannelMessageWithSource)
+                        .interaction_response_data(|response| {
+                            response.content("This command must be used in a server!")
+                        })
+                })
+                .await
+        }
+    };
+
     let mut bot_data = ctx.data.write().await;
 
     // put the permission handling inside a group in order
@@ -38,18 +55,13 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
             .expect("no AdminRoles in TypeMap");
 
         // figure out if the user has perms (looks complicated, but just has a bunch of error handling)
-        let has_perms: bool;
-
-        match extract_partialguild(&command, &ctx).await {
-            Ok(guild) => match admin_roles
-                .command_author_has_admin(&command, &ctx, &guild)
-                .await
-            {
-                Ok(result) => has_perms = result,
-                Err(e) => return Err(e),
-            },
-            Err(e) => return Err(e),
-        }
+        let has_perms: bool = admin_roles
+            .command_author_has_admin(
+                &command,
+                &ctx,
+                &extract_partial_guild(&command, &ctx).await?,
+            )
+            .await?;
 
         // attempts to extract the command's guild id and tells the user to
         // not use this command in dms if it can't find one
@@ -70,14 +82,14 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
     // rwlock will close on function exit
     let groups = bot_data.get_mut::<Groups>().expect("no Groups in TypeMap");
 
-    // extract and store the role and channel
+    // extract and store the command data
     let name: String;
     let channel: Channel;
     let role: Option<Role>;
     let guild: PartialGuild;
 
     match &command.data.options[0].value {
-        Some(Value::String(n)) => name = n.to_owned(),
+        Some(Value::String(n)) => name = n.trim().to_owned(),
         _ => return Err(Error::Other("didn't recieve a name for a new group")),
     }
 
@@ -95,7 +107,7 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
         role = None;
     }
 
-    match extract_partialguild(&command, &ctx).await {
+    match extract_partial_guild(&command, &ctx).await {
         Ok(g) => guild = g,
         Err(e) => return Err(e),
     }
@@ -122,7 +134,12 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
     let mut can_exist = true;
     for g in groups.clone() {
         if group.overlap(&g) {
-            message = "Another group is using the same role or channel!".to_owned();
+            message = "Another group is using that role!".to_owned();
+
+            if group.channel.id() == g.channel.id() {
+                message = "Another group is using that channel!".to_owned();
+            }
+
             can_exist = false;
         }
     }

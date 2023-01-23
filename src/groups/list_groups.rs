@@ -9,7 +9,7 @@ use serenity::{
     Error,
 };
 
-use crate::{extract_from_command::from_command_data::extract_partialguild, Groups};
+use crate::{extract_from_command::from_command_data::extract_partial_guild, Groups};
 
 use super::group::Group;
 
@@ -18,13 +18,22 @@ use super::group::Group;
 //
 
 pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Result<(), Error> {
-    // attempts to extract the command's guild
-    let message_guild: PartialGuild;
-
-    match extract_partialguild(&command, &ctx).await {
-        Ok(g) => message_guild = g,
-        Err(e) => return Err(e),
-    }
+    // attempts to extract the command's guild and tells the user to
+    // not use this command in dms if it can't find one
+    let message_guild: PartialGuild = match extract_partial_guild(&command, &ctx).await {
+        Ok(guild) => guild,
+        Err(_) => {
+            return command
+                .create_interaction_response(&ctx.http, |response| {
+                    response
+                        .kind(InteractionResponseType::ChannelMessageWithSource)
+                        .interaction_response_data(|response| {
+                            response.content("This command must be used in a server!")
+                        })
+                })
+                .await
+        }
+    };
 
     // get groups (because we're in a function,
     // the rwlock will close before any issues arise)
