@@ -16,8 +16,8 @@ use bot_token::BOT_TOKEN;
 // local modules
 mod extract_from_command;
 
-mod todo;
-use todo::todo::Todo;
+mod todos;
+use todos::todo::Todo;
 
 // bot commands
 mod groups;

@@ -56,32 +56,26 @@ impl AdminRoleList {
         ctx: &Context,
         guild: &PartialGuild,
     ) -> Result<bool, Error> {
-        let is_server_owner: bool;
-        let mut has_admin_role = false;
-
         // see if the user is the server owner
-        is_server_owner = command.user.id == guild.owner_id;
+        let is_server_owner = command.user.id == guild.owner_id;
 
-        // see if the user is in the admin roles list
+        // see if the user has any admin roles
+        let mut has_admin = false;
+
         for admin_role in &self.admin_roles {
-            let has_role = command
+            let has_admin_role = command
                 .user
                 .has_role(&ctx.http, guild.clone(), admin_role)
-                .await;
+                .await?;
 
             // if we successfully checked if the user has a role,
             // if they do have the admin role, set has_admin_role
             // to true. otherwise, return the error
-            match has_role {
-                Ok(result) => {
-                    if result == true {
-                        has_admin_role = true;
-                    }
-                }
-                Err(e) => return Err(e),
+            if has_admin_role {
+                has_admin = true;
             }
         }
 
-        Ok(is_server_owner || has_admin_role)
+        Ok(is_server_owner || has_admin)
     }
 }

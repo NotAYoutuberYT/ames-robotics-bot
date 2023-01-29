@@ -3,10 +3,7 @@ use serenity::{
     json::Value,
     model::{
         application::interaction::application_command::ApplicationCommandInteraction,
-        prelude::{
-            command::CommandOptionType, interaction::InteractionResponseType, Channel, ChannelType,
-            PartialGuild, Role,
-        },
+        prelude::{command::CommandOptionType, interaction::InteractionResponseType, ChannelType},
     },
     prelude::Context,
     utils::MessageBuilder,
@@ -14,10 +11,7 @@ use serenity::{
 };
 
 use crate::{
-    extract_from_command::{
-        from_command_data::extract_partial_guild,
-        from_options::{extract_channel, extract_role},
-    },
+    extract_from_command::{from_command::extract_partial_guild, from_options},
     AdminRoles, Groups,
 };
 
@@ -30,7 +24,7 @@ use super::group::Group;
 pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Result<(), Error> {
     // attempts to extract the command's guild and tells the user to
     // not use this command in dms if it can't find one
-    match extract_partial_guild(&command, &ctx).await {
+    match extract_partial_guild(command, ctx).await {
         Ok(_) => (),
         Err(_) => {
             return command
@@ -56,11 +50,7 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
 
         // figure out if the user has perms (looks complicated, but just has a bunch of error handling)
         let has_perms: bool = admin_roles
-            .command_author_has_admin(
-                &command,
-                &ctx,
-                &extract_partial_guild(&command, &ctx).await?,
-            )
+            .command_author_has_admin(command, ctx, &extract_partial_guild(command, ctx).await?)
             .await?;
 
         // attempts to extract the command's guild id and tells the user to
@@ -79,46 +69,43 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
     }
 
     // borrow the bot's groups at mutable
-    // rwlock will close on function exit
+    // (rwlock will close on function exit)
     let groups = bot_data.get_mut::<Groups>().expect("no Groups in TypeMap");
 
-    // extract and store the command data
-    let name: String;
-    let channel: Channel;
-    let role: Option<Role>;
-    let guild: PartialGuild;
-
-    match &command.data.options[0].value {
-        Some(Value::String(n)) => name = n.trim().to_owned(),
+    // extract and store group name
+    let group_name = match &command.data.options[0].value {
+        Some(Value::String(name)) => name.trim().to_owned(),
         _ => return Err(Error::Other("didn't recieve a name for a new group")),
-    }
+    };
 
-    match extract_channel(&command, &ctx, 1).await {
-        Ok(c) => channel = c,
+    // extract and store group channel
+    let group_channel = match from_options::extract_channel(command, ctx, 1).await {
+        Ok(channel) => channel,
         Err(e) => return Err(e),
-    }
+    };
 
-    if command.data.options.len() > 2 {
-        match extract_role(&command, &ctx, 2).await {
-            Ok(r) => role = Some(r),
+    // extract and store group guild
+    let group_guild = match extract_partial_guild(command, ctx).await {
+        Ok(guild) => guild,
+        Err(e) => return Err(e),
+    };
+
+    // extract and store group role if one was provided
+    let group_role = match command.data.options.len() > 2 {
+        true => match from_options::extract_role(command, ctx, 2).await {
+            Ok(r) => Some(r),
             Err(e) => return Err(e),
-        }
-    } else {
-        role = None;
-    }
-
-    match extract_partial_guild(&command, &ctx).await {
-        Ok(g) => guild = g,
-        Err(e) => return Err(e),
-    }
+        },
+        false => None,
+    };
 
     // create a new group and insert it into the groups struct
     let group = Group {
-        name: name,
-        role: role,
-        channel: channel.clone(),
+        name: group_name,
+        role: group_role,
+        channel: group_channel.clone(),
         todos: Vec::new(),
-        guild: guild,
+        guild: group_guild,
     };
 
     let mut builder = MessageBuilder::new();
@@ -145,7 +132,7 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
     }
 
     // makes sure the channel the group uses is a text channel
-    if let Some(guild_channel) = channel.guild() {
+    if let Some(guild_channel) = group_channel.guild() {
         if guild_channel.kind != ChannelType::Text {
             message = "Groups must be created on text channels!".to_owned();
             can_exist = false;

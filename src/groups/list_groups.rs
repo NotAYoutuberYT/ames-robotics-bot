@@ -9,7 +9,7 @@ use serenity::{
     Error,
 };
 
-use crate::{extract_from_command::from_command_data::extract_partial_guild, Groups};
+use crate::{extract_from_command::from_command::extract_partial_guild, Groups};
 
 use super::group::Group;
 
@@ -20,7 +20,7 @@ use super::group::Group;
 pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Result<(), Error> {
     // attempts to extract the command's guild and tells the user to
     // not use this command in dms if it can't find one
-    let message_guild: PartialGuild = match extract_partial_guild(&command, &ctx).await {
+    let message_guild: PartialGuild = match extract_partial_guild(command, ctx).await {
         Ok(guild) => guild,
         Err(_) => {
             return command
@@ -56,12 +56,9 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
         builder.push(": ");
         builder.push_safe(group.channel);
 
-        match group.role {
-            Some(role) => {
-                builder.push_safe(", ");
-                builder.push_safe(role);
-            }
-            None => (),
+        if let Some(role) = group.role {
+            builder.push_safe(", ");
+            builder.push_safe(role);
         }
 
         builder.push("\n");
@@ -70,7 +67,7 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
     // interact to the command with a response containing the supplied messasge
     let mut message = builder.build();
 
-    if relevant_groups.len() == 0 {
+    if relevant_groups.is_empty() {
         message = "There are no groups!".to_owned();
     }
 

@@ -10,7 +10,7 @@ use serenity::{
 };
 
 use crate::extract_from_command::{
-    from_command_data::extract_partial_guild, from_options::extract_role,
+    from_command::extract_partial_guild, from_options::extract_role,
 };
 use crate::AdminRoles;
 
@@ -38,11 +38,7 @@ pub async fn run(command: &ApplicationCommandInteraction, ctx: &Context) -> Resu
 
     // figure out if the user has perms (looks complicated, but just has a bunch of error handling)
     let has_perms: bool = admin_roles
-        .command_author_has_admin(
-            &command,
-            &ctx,
-            &extract_partial_guild(&command, &ctx).await?,
-        )
+        .command_author_has_admin(command, ctx, &extract_partial_guild(command, ctx).await?)
         .await?;
 
     // remove the roll from admin roles if the user has perms
